@@ -287,3 +287,67 @@
             provide_context=True,
             dag=dag,
         )
+
+
+
+- Executing Work in Fixed-Length Intervals
+
+    - As we've seen, we can control when Airflow runs a DAG with 3 parameters:
+
+        1. Start date
+        2. Schedule interval
+        3. End date (optional)
+
+
+    - In this interval-based representation of time, a DAG is executed for a given interval
+        as soon as the time slot of that interval has passed.
+
+      For example, if we have a DAG that is to run daily and is scheduled to start on 
+        2019-01-03, the DAG will run soon after midnight on 2019-01-04.
+
+      However, if we look at the 'execution_date' variable when our tasks are executed, 
+        we will actually see an execution date of '2019-01-03'.  This is because the
+        'execution_date' is defined as the start of the corresponding interval, rather than
+        when our DAG is actually executed.
+
+
+
+- Using Backfilling to Fill in Past Gaps
+
+    - As Airflow allows us to define schedule intervals starting from an arbitrary start date,
+        we can also define past intervals starting from a start date in the past.
+
+      We can use this property to perform historical runs of our DAG for loading or analyzing
+        past datasets.  This is called 'backfilling'.
+
+
+    - By default, Airflow will schedule and run any past schedule intervals that have not yet
+        been run.  
+
+      So, specifying a past start date and activating the corresponding DAG will result in all
+        intervals that have passed before the current time being executed.  This behavior
+        can be disabled using the 'catchup' parameter.
+
+        dag = DAG(
+           dag_id="user_events",
+           schedule_interval=timedelta(days=3),
+           start_date=dt.datetime(year=2019, month=1, day=1),
+           catchup=False,
+        )
+
+
+    - This value can also be controlled from the Airflow config file.
+
+
+    - Backfilling can also be used to re-process data after we have made changes in our 
+        code. 
+
+      For example, say we make a change to our _calc_statistics function to add a new 
+        statistic. Using backfilling, we can clear past runs of our calc_statistics task 
+        to re-analyze our historical data using the new code.
+
+
+
+- Best Practice - Atomicity
+
+    - 
