@@ -1,0 +1,67 @@
+-----------------------------------------------------------------------
+|  UBUNTU 18.04 - AIRFLOW INSTALLATION                                |
+-----------------------------------------------------------------------
+
+- First, install the necessary pip packages.
+
+    $ pip install apache-airflow
+    $ pip install postgres
+
+
+
+- Add an environment variable for the airflow home.
+
+    $ vim ~/.bashrc
+
+    # Add
+    export AIRFLOW_HOME="$HOME/airflow"
+
+    $ source ~/.bashrc
+
+Postgres and the LocalExecutor.
+
+
+- Initialize airflow, which will create a config file 'airflow.cfg' and a default SQLite DB.
+
+    $ airflow initdb
+
+
+- Instead of using SQLite, we'll use Postgres.
+
+    # Create a new Postgres database
+    postgres=# CREATE DATABASE airflow;
+    postgres=# CREATE USER airflow WITH ENCRYPTED PASSWORD 'airflow';
+    postgres=# GRANT ALL PRIVILEGES ON DATABASE airflow to airflow;
+
+
+- Next, we'll configure airflow to use Postgres and the LocalExecutor.
+
+    # airflow.cfg
+    ------------------------------------------------
+    [core]
+    # Back-end storage url
+    sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@localhost:5432/airflow
+    
+    # The executor class that airflow should use. Choices include
+    # SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
+    executor = LocalExecutor
+
+
+    # These settings may also need to be changed out of the box
+    load_examples = False                # Airflow samples
+    base_url = http://localhost:8085     # Web address for UI
+    default_timezone = America/Denver    # Specifies local timezone
+
+
+- Now, we just need to re-run the 'initdb' script to set up Postgres.
+
+    $ airflow initdb
+
+  Also, when new DAGs are added to the '~/airflow/dags' we will have to run this command 
+    again to recognize the new DAG.
+
+
+- Now, airflow should be completely configured.  We can get it up and running:
+
+    $ airflow scheduler
+    $ airflow webserver
