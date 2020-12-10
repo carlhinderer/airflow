@@ -1,0 +1,133 @@
+-----------------------------------------------------------------------
+|  CHAPTER 1 - MEET APACHE AIRFLOW                                    |
+-----------------------------------------------------------------------
+
+- Data Pipelines as Graphs
+
+    - Data pipelines are modeled as a DAG.
+
+        Fetch_Weather_Forecast  -->  Clean_Forecast_Data  -->  Push_Data_To_Dashboard
+
+
+    - The algorithm for running the pipeline is uncomplicated:
+
+        1. For each uncompleted task in the graph:
+
+             2. For each edge pointing towards the task, check if the upstream task on
+                  the other end of the edge has been completed.
+
+             3. If all upstream tasks have been completed, add the task under consideration
+                  to a queue of tasks to be executed.
+
+        4. Execute the tasks in the execution queue, marking them completed when they are
+             finished performing their work.
+
+        5. Jump back to Step 1, until all tasks in the graph have been completed.
+
+
+    - The reason for using a DAG-based system, rather than a traditional script, is that
+        we can run tasks that are not dependent on each other in parallel.
+
+
+
+- Well-Known Workflow Managers
+
+                                                                                            Horiz
+    Name       Origin     Workflows in   Written in   Schedule   Backfill   UI   Platform   Scalable
+    ---------------------------------------------------------------------------------------------------
+    Airflow    Airbnb     Python         Python       Yes        Yes        Yes  Anywhere   Yes
+    
+    Argo       Applatix   YAML           Go           3rd party  Yes        Yes  Kubernetes Yes
+        
+    Azkaban    LinkedIn   YAML           Java         Yes        No         Yes  Anywhere   
+    
+    Conductor  Netflix    JSON           Java         No                    Yes  Anywhere   Yes
+    
+    Luigi      Spotify    Python         Python       No         Yes        Yes  Anywhere   Yes
+    
+    Make                  Custom DSL     C            No         No         No   Anywhere   No
+
+    Metaflow   Netflix    Python         Python       No                    No   Anywhere   Yes
+
+    Oozie                 XML            Java         Yes        Yes        Yes  Hadoop     Yes
+
+
+
+- Introducting Airflow
+
+    - Pipelines are defined flexibly in Python code.  This means you can generate optional
+        tasks based on conditions, read config files, work with external metadata, etc.
+
+
+    - Tasks can execute any operation that you can implement in Python.  This has let to a wide
+        variety of Airflow extensions for executing tasks in databases, storage systems, and big
+        data technologies.
+
+
+
+- Scheduling and Executing Pipelines
+
+   - Once you've defined the structure of your pipelines as DAGs, Airflow allows you
+       to define a schedule interval for each DAG.  It can be every hour, day, week, or
+       based on cron-like expressions for more complex intervals.
+
+
+    - At high level, Airflow is organized into 3 main components:
+
+        1. The Airflow scheduler
+
+             Parses DAGs, checks their schedule interval, and starts scheduling the DAG's
+               tasks for execution by passing them to the Airflow workers.
+
+        2. The Airflow workers
+
+             Pick up tasks that are scheduled for execution and executes them.
+
+        3. The Airflow webserver
+
+             Visualizes the DAGs parsed by the scheduler and provides the main interface for
+               users to monitor the DAG runs and their results.
+
+
+
+- Monitoring and Handling Failures
+
+    - By default, Airflow can handle failures in tasks by retrying them a couple of times, 
+        which can help tasks recover from any intermittent failures.
+
+
+    - If the retries don't help, Airflow will record the task as failed and optional 
+        notifications can be set up.
+
+
+
+- Incremental Loading and Backfilling
+
+    - Schedule intervals can be set based on last and next intervals, in addition to 
+        being run based on a fixed time point.  This can be useful in avoiding 
+        recomputation of large datasets.
+
+
+    - 'Backfilling' allows you to execute a new DAG for historical schedule intervals
+        that have already occurred in the past.  This way, you can easily re-run any
+        historical tasks.
+
+
+
+- Reasons to Use Airflow
+
+    - Implement pipelines in Python code
+    - Rich collection of extensions
+    - Rich scheduling semantics
+    - Backfilling
+    - Rich web interface
+    - Open source
+
+
+
+- Reasons Not to Use Airflow
+
+    - Designed for batch-oriented tasks, not streaming workloads
+    - Implementing highly dynamic pipelines, where tasks are added/removed after each run
+    - Don't have Python experience
+    - Doesn't have data lineage or versioning
