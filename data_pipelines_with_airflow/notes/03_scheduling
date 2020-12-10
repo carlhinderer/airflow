@@ -1,0 +1,163 @@
+-----------------------------------------------------------------------
+|  CHAPTER 3 - SCHEDULING AN AIRFLOW                                  |
+-----------------------------------------------------------------------
+
+- Example - Processing User Events
+
+    - Imagine we have a service that tracks user behavior on our website and allows us to
+        analyze which pages users (identified by IP address) accessed on our site.
+
+      For marketing purposes, we would like to know how many different pages are accessed 
+        by our users and how much time they spend during each visit.  To get an idea of
+        how this behavior changes over time, we want to calculate these statistics on a 
+        daily basis.  This will allow us to compare changes across different days and time
+        periods.
+
+
+    - The external tracking service does not store data for more than 30 days.  This means we
+        need to store and accumulate this data ourselves.  Normally, we'd store this data in
+        the cloud, but for this exercise we'll store it locally.
+
+
+    - Here is the API that allows us to retrieve the full list of available events in the 
+        last 30 days:
+
+        curl -o /tmp/events.json http://localhost:5000/events
+
+      It returns a JSON-encoded list of user events we can analyze to calculate our user
+        statistics.
+
+
+
+- Calculating the Statistics
+
+    - We will break our workflow down into 2 separate tasks:
+
+        1. Fetch the user events
+        2. Calculate the statistics
+
+
+    - To calculate the statistics, we'll load the data into a pandas DataFrame and calculate
+        the number of events using a groupby and an aggregation.
+
+        def calculate_stats(input_path, output_path):
+            """Calculates event statistics."""
+            events = pd.read_json(input_path)
+            stats = events.groupby(["date", "user"]).size().reset_index()
+            stats.to_csv(output_path, index=False)
+
+
+    - Then, we end up with this DAG:
+
+        dag = DAG(
+           dag_id="user_events",
+           start_date=datetime(2015, 6, 1),
+           schedule_interval=None,
+        )
+         
+        fetch_events = BashOperator(
+           task_id="fetch_events",
+           bash_command="curl -o data/events.json https://localhost:5000/events",
+           dag=dag,
+        )
+ 
+        calculate_stats = PythonOperator(
+           task_id="calculate_stats",
+           python_callable=_calculate_stats,
+           op_kwargs={
+               "input_path": "data/events.json",
+               "output_path": "data/stats.csv",
+           },
+           dag=dag,
+        )
+         
+        fetch_events >> calculate_stats
+
+
+
+- Defining Scheduling Intervals
+
+    - It makes sense for us to calculate our statistics daily, so we can use the convenient
+        '@daily' macro.  This will run our DAG every day at midnight.
+
+        dag = DAG(
+            dag_id="user_events",
+            schedule_interval="@daily",
+            ...
+        )
+
+
+    - We also need to add a start date so that Airflow knows when to start scheduling our DAG
+        runs.  
+
+      Note Airflow starts an interval at the end of the interval.  So, if a daily run starts on
+        1/1/2020, then the first run will be at midnight the next day.
+
+        import datetime as dt
+ 
+        dag = DAG(
+            dag_id="user_events",
+            schedule_interval="@daily",
+            start_date=dt.datetime(year=2019, month=1, day=1)
+        )
+
+
+    - If we don't specify an end date, the DAG will keep running forever.  If we know there is a
+        defined end date, we can specify it.
+
+        dag = DAG(
+            dag_id="user_events",
+            schedule_interval="@daily",
+            start_date=dt.datetime(year=2019, month=1, day=1),
+            end_date=dt.datetime(year=2019, month=1, day=5),
+        )
+
+
+
+- Cron-Based Intervals
+
+    - For more complicated intervals, Airflow allows us to use scheduling intervals using
+        the same syntax as cron.
+
+        # ┌─────── minute (0 - 59)
+        # │ ┌────── hour (0 - 23)
+        # │ │ ┌───── day of the month (1 - 31)
+        # │ │ │ ┌───── month (1 - 12)
+        # │ │ │ │ ┌──── day of the week (0 - 6) (Sunday to Saturday;
+        # │ │ │ │ │      7 is also Sunday on some systems)
+        # * * * * *
+
+
+    - For instance, here are some cron examples:
+
+        0 * * * * = hourly (running on the hour)
+        0 0 * * * = daily (running at midnight)
+        0 0 * * 0 = weekly (running at midnight on Sunday)
+
+        0 0 1 * * = midnight on the first of every month
+        45 23 * * SAT = 23:45 every Saturday
+
+
+    - We can also use ',' to define collections and '-' to define ranges.
+
+        0 0 * * MON,WED,FRI = run every Monday, Wednesday, Friday at midnight
+        0 0 * * MON-FRI = run every weekday at midnight
+        0 0,12 * * * = run every day at 00:00 AM and 12:00 P.M.
+
+
+    - Airflow also has support for serveral macros that represent commonly used scheduling
+        intervals:
+
+        Preset          Meaning
+        -----------------------------------------------------------------
+        @once           Schedule once and only once
+        
+        @hourly         Run once an hour at the beginning of the hour
+        
+        @daily          Run once a day at midnight
+        
+        @weekly         Run once a week at midnight on Sunday morning
+        
+        @monthly        Run once a month at midnight on the first day of the month
+        
+        @yearly         Run once a year at midnight on January 1
