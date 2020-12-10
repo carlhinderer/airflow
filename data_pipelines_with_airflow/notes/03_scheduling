@@ -161,3 +161,129 @@
         @monthly        Run once a month at midnight on the first day of the month
         
         @yearly         Run once a year at midnight on January 1
+
+
+
+- Frequency-Based Intervals
+
+    - One limitation of cron expressions is that they are unable to represent certain
+        frequency-based schedules.  For instance, you can't define a cron expression that
+        will run once every 3 days.
+
+      This is because cron is built to continuously match against the current time to decide
+        whether a job should be run.  The advantage of this is that it makes cron stateless,
+        but you do lose some expressiveness.
+
+
+    - To support this type of interval, Airflow also allows you to define scheduling intervals
+        in terms of a relative time interval.
+
+        from datetime import timedelta
+ 
+        dag = DAG(
+            dag_id="user_events",
+            schedule_interval=timedelta(days=3),
+            start_date=dt.datetime(year=2019, month=1, day=1),
+        )
+
+
+
+- Fetching Events Incrementally
+
+    - So far, we are downloading and calculating statistics for the entire catalog of user
+        events each day.  Also, we are only downloading events for the past 30 days, which
+        means we have no history for further in the past.
+
+
+    - One way to solve these issues is to change our DAG to load data in an incremental
+        fashion.  This is much more efficient, as we are transferring and processing much
+        less data.
+
+        # Start date is inclusive, end date is exclusive (This gets 2019-01-01)
+        curl -O http://localhost:5000/events?start_date=2019-01-01&end_date=2019-01-02
+
+
+    - We can implement this in our DAG by changing our bash command:
+
+        fetch_events = BashOperator(
+            task_id="fetch_events",
+            bash_command="curl -o data/events.json http://localhost:5000/
+                events?start_date=2019-01-01&end_date=2019-01-02",
+            dag=dag,
+        )
+
+
+
+- Dynamic Time References using Execution Dates
+
+    - Airflow provides tasks with extra parameters that can be used to determine on which
+        interval a task is being executed.
+
+      The 'execution_date' is a timestamp that reflects the start interval for which the DAG
+        is being executed.  The end time of the schedule interval is indicated by the 
+        'next_execution_date' parameter.  Together, they define the length of a task's
+        schedule interval.
+
+
+    - For example, we can use Airflow's Jinja templating syntax to include the execution
+        dates dynamically in our bash command.
+
+        fetch_events = BashOperator(
+            task_id="fetch_events",
+            bash_command=(
+                 "curl -o data/events.json "
+                 "http://localhost:5000/events?"
+                 "start_date={{execution_date.strftime('%Y-%m-%d')}}"
+                 "&end_date={{next_execution_date.strftime('%Y-%m-%d')}}"
+            ),
+            dag=dag,
+        )
+
+
+    - Since the execution_date parameters are used so often, Airflow also provides shorthand
+        for common date formats.
+
+        ds, next_ds, prev_ds                            # YYYY-MM-DD
+        ds_nodash, next_ds_nodash, prev_ds_nodash       # YYYYMMDD
+
+
+    - Using these shorthands, we can rewrite our incremental fetch command:
+
+        fetch_events = BashOperator(
+           task_id="fetch_events",
+           bash_command="curl -o data/events.json http://localhost:5000/
+                         events?start_date={{ds}}&end_date={{next_ds}}",
+           dag=dag,
+        )
+
+
+
+- Partitioning Your Data
+
+    - Right now, each time we fetch events for a day, we are just overwriting the previous
+        day's data.  
+
+      We could just append events to the existing JSON file, but we'd have to load the entire
+        file when we wanted to do calculations.  Instead, we'll write each day's events to a
+        new file.
+
+        def _calculate_stats(**context):
+            """Calculates event statistics."""
+            input_path = context["templates_dict"]["input_path"]
+            output_path = context["templates_dict"]["output_path"]
+         
+            events = pd.read_json(input_path)
+            stats = events.groupby(["date", "user"]).size().reset_index()
+            stats.to_csv(output_path, index=False)
+         
+         
+        calculate_stats = PythonOperator(
+            task_id="calculate_stats",
+            python_callable=_calculate_stats,
+            templates_dict={
+                "input_path": "data/events/{{ds}}.json",
+                "output_path": "data/stats/{{ds}}.csv",
+            },
+            provide_context=True,
+            dag=dag,
+        )
