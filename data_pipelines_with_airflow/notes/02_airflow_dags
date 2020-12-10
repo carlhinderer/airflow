@@ -1,0 +1,91 @@
+-----------------------------------------------------------------------
+|  CHAPTER 2 - ANATOMY OF AN AIRFLOW DAG                              |
+-----------------------------------------------------------------------
+
+- Rocket Example
+
+    - For our first simple example, we are a rocket enthusiast and want to collect
+        pictures of rockets that will be launched soon.
+
+      We'll make a REST call to an API that returns a list of upcoming launches, and
+        then we'll take the image URL from the JSON of each launch returned.
+
+      Then, we'll use Python code to retrieve and save the image from each URL.
+
+
+    - Our workflow looks like:
+
+        download_launches  -->  get_pictures  -->  notify
+
+
+
+- DAG of Tasks
+
+    dag = DAG(
+       dag_id="download_rocket_launches",
+       start_date=airflow.utils.dates.days_ago(14),
+       schedule_interval=None,
+    )
+     
+    download_launches = BashOperator(
+       task_id="download_launches",
+       bash_command="curl -o /tmp/launches.json 'https://launchlibrary.net/1.4/launch?next=5&mode=verbose'",
+       dag=dag,
+    )
+    
+    # The get_pictures() method is defined in the script
+    get_pictures = PythonOperator(
+       task_id="get_pictures",
+       python_callable=_get_pictures,
+       dag=dag,
+    )
+     
+    notify = BashOperator(
+       task_id="notify",
+       bash_command='echo "There are now $(ls /tmp/images/ | wc -l) images."',
+       dag=dag,
+    )
+     
+    download_launches >> get_pictures >> notify
+
+
+
+- Running a DAG in Airflow
+
+    - To run Airflow in a Docker container:
+
+        $ docker run -p 8080:8080 airflowbook/airflow
+
+
+    - Alternatively, we can install it locally:
+
+        $ pip install apache-airflow
+
+
+    - Then, we can start the scheduler and webserver:
+
+        $ airflow initdb
+        $ cp download_rocket_launches.py ~/airflow/dags
+
+        $ airflow scheduler &
+        $ airflow webserver &
+
+
+    - We can see our task, and can click 'Trigger DAG' to run it.
+
+
+    - To look at the outcome of our DAG after it has finished, we can click on the 'notify'
+        action in the 'Graph View' and click 'View Logs'.
+
+
+
+- Running at Regular Intervals
+
+    - We can schedule a DAG to run at certain intervals by setting the 'schedule_interval'
+        argument.
+
+        dag = DAG(
+           dag_id="download_rocket_launches",
+           start_date=airflow.utils.dates.days_ago(14),
+           schedule_interval="@daily",
+        )
