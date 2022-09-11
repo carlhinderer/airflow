@@ -123,8 +123,8 @@
         # │ ┌────── hour (0 - 23)
         # │ │ ┌───── day of the month (1 - 31)
         # │ │ │ ┌───── month (1 - 12)
-        # │ │ │ │ ┌──── day of the week (0 - 6) (Sunday to Saturday;
-        # │ │ │ │ │      7 is also Sunday on some systems)
+        # │ │ │ │ ┌──── day of the week (0 - 6) (Sunday to Saturday; 7 is also Sunday on some systems)
+        # │ │ │ │ │
         # * * * * *
 
 
@@ -336,7 +336,8 @@
         )
 
 
-    - This value can also be controlled from the Airflow config file.
+    - This value can also be controlled from the Airflow config file by setting a value for the
+        'catchup_by_default' option.
 
 
     - Backfilling can also be used to re-process data after we have made changes in our 
@@ -350,4 +351,23 @@
 
 - Best Practice - Atomicity
 
-    - 
+    - Airflow tasks should be defined so that they either succeed and produce some proper
+        end result, or fail in a manner that does not affect the state of the system.
+
+
+    - For instance, we could add a notification where statistics are mailed out to the end
+        of our 'calculate_stats' task, but we shouldn't.  If our calculation or our email
+        failed, it would be hard to know what to rerun.
+
+
+
+- Best Practice - Idempotency
+
+    - We should try to make tasks idempotent, meaning that calling them multiple times with the same 
+        inputs should not change the overall output.
+
+
+    - For instance, looking at our partitioned example, if we just appended the day's events to one large
+        events file, running it multiple times would add multiple copies of the events to the file.
+
+      If we create a file for a single day's events, we could overwrite it with no additional effects.
