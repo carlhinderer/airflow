@@ -50,32 +50,75 @@
 
 
 
-- Running a DAG in Airflow
+- Running Airflow in a Python Environment
 
-    - To run Airflow in a Docker container:
+    - The bare minimum Airflow consists of 3 core components:
 
-        $ docker run -p 8080:8080 airflowbook/airflow
+        1. Scheduler
+        2. Webserver
+        3. Database
 
 
-    - Alternatively, we can install it locally:
+    - To install Airflow locally:
 
         $ pip install apache-airflow
 
 
-    - Then, we can start the scheduler and webserver:
+    - We initialized the metastore, a database where all Airflow state is stored.  For instructions on
+        setting up Postgres as the DB, check 'ubuntu_1804_install'.
 
-        $ airflow initdb
+        $ airflow db init
+
+
+    - Then, we create a user:
+
+        $ airflow users create --username admin --password admin --firstname Anonymous \
+            --lastname Admin --role Admin --email admin@example.org
+
+
+    - We copy the DAG we just created into the DAGs folder:
+
         $ cp download_rocket_launches.py ~/airflow/dags
 
-        $ airflow scheduler &
+
+    - Now, we can start the webserver and scheduler:
+
         $ airflow webserver &
+        $ airflow scheduler &
 
 
-    - We can see our task, and can click 'Trigger DAG' to run it.
+    - Navigate to the web UI at http://localhost:8080.  We can see our task, and can click 'Trigger DAG' 
+        to run it.
 
 
     - To look at the outcome of our DAG after it has finished, we can click on the 'notify'
         action in the 'Graph View' and click 'View Logs'.
+
+
+
+- Running Airflow in Docker Containers
+
+    - To run Airflow in a Docker container:
+
+        $ docker run \
+            -it \
+            -p 8080:8080 \
+            -v /path/to/dag/download_rocket_launches.py:/opt/airflow/dags/download_rocket_launches.py \
+            --entrypoint=/bin/bash \
+            --name airflow \
+            apache/airflow:2.0.0-python3.8 \
+            -c '( \
+              airflow db init && \
+              airflow users create --username admin --password admin --firstname
+              Anonymous --lastname Admin --role Admin --email admin@example.org \
+              ); \
+              airflow webserver & \
+              airflow scheduler \
+              '
+
+
+    - Note that this is just a quickstart.  In Production, you should run the webserver, scheduler, and
+        metastore in separate containers.
 
 
 

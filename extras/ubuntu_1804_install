@@ -23,7 +23,7 @@ Postgres and the LocalExecutor.
 
 - Initialize airflow, which will create a config file 'airflow.cfg' and a default SQLite DB.
 
-    $ airflow initdb
+    $ airflow db init
 
 
 - Instead of using SQLite, we'll use Postgres.
@@ -53,9 +53,11 @@ Postgres and the LocalExecutor.
     default_timezone = America/Denver    # Specifies local timezone
 
 
-- Now, we just need to re-run the 'initdb' script to set up Postgres.
+- Now, we just need to re-run the 'initdb' script to set up Postgres.  We'll also need to add psycopg2.
 
-    $ airflow initdb
+    $ pip install psycopg2
+
+    $ airflow db init
 
   Also, when new DAGs are added to the '~/airflow/dags' we will have to run this command 
     again to recognize the new DAG.
