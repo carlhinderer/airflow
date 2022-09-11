@@ -1,25 +1,28 @@
 import json
 import pathlib
- 
+
 import airflow
 import requests
 import requests.exceptions as requests_exceptions
+
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
- 
+
+
 dag = DAG(
    dag_id="download_rocket_launches",
    start_date=airflow.utils.dates.days_ago(14),
    schedule_interval=None,
 )
- 
+
+
 download_launches = BashOperator(
-   task_id="download_launches",
-   bash_command="curl -o /tmp/launches.json 'https://launchlibrary.net/1.4/launch?next=5&mode=verbose'",
-   dag=dag,
+task_id="download_launches",
+bash_command="curl -o /tmp/launches.json -L 'https://ll.thespacedevs.com/2.0.0/launch/upcoming'",
+dag=dag,
 )
- 
+
  
 def _get_pictures():
    # Ensure directory exists
@@ -28,7 +31,7 @@ def _get_pictures():
    # Download all pictures in launches.json
    with open("/tmp/launches.json") as f:
        launches = json.load(f)
-       image_urls = [launch["rocket"]["imageURL"] for launch in launches["launches"]]
+       image_urls = [launch["image"] for launch in launches["results"]]
        for image_url in image_urls:
            try:
                response = requests.get(image_url)
@@ -48,11 +51,13 @@ get_pictures = PythonOperator(
    python_callable=_get_pictures,
    dag=dag,
 )
- 
+
+
 notify = BashOperator(
    task_id="notify",
    bash_command='echo "There are now $(ls /tmp/images/ | wc -l) images."',
    dag=dag,
 )
- 
+
+
 download_launches >> get_pictures >> notify
