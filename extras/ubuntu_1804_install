@@ -21,9 +21,15 @@
 Postgres and the LocalExecutor.
 
 
-- Initialize airflow, which will create a config file 'airflow.cfg' and a default SQLite DB.
+
+- Initialize airflow, which will create a ~/airflow directory.  It will include:
+    - a config file 'airflow.cfg'
+    - a config file for the webserver 'webserver_config.py'
+    - a default SQLite DB 'airflow.db'
+    - a folder for logs
 
     $ airflow db init
+
 
 
 - Instead of using SQLite, we'll use Postgres.
@@ -34,23 +40,29 @@ Postgres and the LocalExecutor.
     postgres=# GRANT ALL PRIVILEGES ON DATABASE airflow to airflow;
 
 
+
 - Next, we'll configure airflow to use Postgres and the LocalExecutor.
 
     # airflow.cfg
     ------------------------------------------------
     [core]
-    # Back-end storage url
-    sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@localhost:5432/airflow
+    # Point dags folder to local code repo
+    dags_folder = /home/carl/Code/python/airflow/dags
     
     # The executor class that airflow should use. Choices include
     # SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor, KubernetesExecutor
     executor = LocalExecutor
 
-
     # These settings may also need to be changed out of the box
     load_examples = False                # Airflow samples
     base_url = http://localhost:8085     # Web address for UI
-    default_timezone = America/Denver    # Specifies local timezone
+    default_timezone = America/Denver    # Specifies local timezone (or can leave default utc)
+
+
+    [database]
+    # Back-end storage url
+    sql_alchemy_conn = postgresql+psycopg2://airflow:airflow@localhost:5432/airflow
+
 
 
 - Now, we just need to re-run the 'initdb' script to set up Postgres.  We'll also need to add psycopg2.
@@ -61,6 +73,7 @@ Postgres and the LocalExecutor.
 
   Also, when new DAGs are added to the '~/airflow/dags' we will have to run this command 
     again to recognize the new DAG.
+
 
 
 - Now, airflow should be completely configured.  We can get it up and running:
@@ -98,6 +111,7 @@ Postgres and the LocalExecutor.
 
     Environment="PATH=/home/ubuntu/python/envs/airflow/bin:/usr/local/sbin:/usr/local/bin:
     /usr/sbin:/usr/bin:/sbin:/bin"
+
 
 
 - We will also want to create systemd service files for the Airflow Scheduler and the
@@ -145,6 +159,7 @@ Postgres and the LocalExecutor.
     
     [Install]
     WantedBy=multi-user.target
+
 
 
 - Finally, we can enable them to start.
