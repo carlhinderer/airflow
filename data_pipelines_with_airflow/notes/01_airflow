@@ -74,19 +74,35 @@
 
     - At high level, Airflow is organized into 3 main components:
 
-        1. The Airflow scheduler
+        - The Airflow scheduler
 
-             Parses DAGs, checks their schedule interval, and starts scheduling the DAG's
-               tasks for execution by passing them to the Airflow workers.
+            Parses DAGs, checks their schedule interval, and starts scheduling the DAG's
+              tasks for execution by passing them to the Airflow workers.
 
-        2. The Airflow workers
+        - The Airflow workers
 
-             Pick up tasks that are scheduled for execution and executes them.
+            Pick up tasks that are scheduled for execution and executes them.
 
-        3. The Airflow webserver
+        - The Airflow webserver
 
-             Visualizes the DAGs parsed by the scheduler and provides the main interface for
-               users to monitor the DAG runs and their results.
+            Visualizes the DAGs parsed by the scheduler and provides the main interface for
+              users to monitor the DAG runs and their results.
+
+
+    - The heart of Airflow is the scheduler, where most of the magic happens.  At a high level, the
+        scheduler runs through the following steps:
+
+        1. Once users have written their workflows as DAGs, the files containing these DAGs are read
+             by the scheduler to extract the corresponding tasks, dependencies, and schedule interval
+             of each DAG.
+
+        2. For each DAG, the scheduler then checks whether the schedule interval for the DAG has passed
+             since the last time it was read.  If so, the tasks in the DAG are scheduled for execution.
+
+        3. For each scheduled task, the scheduler then checks whether the dependencies of the task have
+             been completed.  If so, the task is added to the execution queue.
+
+        4. The scheduler waits for several moments before starting a new loop by jumping back to Step 1.
 
 
 

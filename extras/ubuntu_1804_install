@@ -83,6 +83,13 @@ Postgres and the LocalExecutor.
 
 
 
+- In order to log into the webserver, we need to create a user:
+
+    $ airflow users  create --role Admin --username admin --email admin --firstname admin 
+        --lastname admin --password admin
+
+
+
 - One last thing is that we have to make some changes if we want airflow to be run 
     automatically at startup by systemd.
 
