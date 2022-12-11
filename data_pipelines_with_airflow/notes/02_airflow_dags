@@ -50,6 +50,17 @@
 
 
 
+- Tasks vs Operators
+
+    - 'Task' and 'operator' are often used interchangeably, but they have a subtle difference.  
+
+
+    - Operators provide the implementation of a piece of work.  Tasks manage the execution of an
+        operator.  They can be thought of as a small wrapper that ensures the operator executes
+        correctly.
+
+
+
 - Running Airflow in a Python Environment
 
     - The bare minimum Airflow consists of 3 core components:
@@ -132,3 +143,15 @@
            start_date=airflow.utils.dates.days_ago(14),
            schedule_interval="@daily",
         )
+
+
+
+- Handling Failing Tasks
+
+    - If a task fails, it will throw some kind of error.  It will be shown in red in the graph.  We can 
+        look at the logs to see why the task failed.
+
+
+    - It is unnecessary to re-run the entire DAG.  We can click the failed task and select 'Clear',
+        which will reset the state of the task.  This will cause Airflow to re-run the failed task
+        and any subsequent tasks.
