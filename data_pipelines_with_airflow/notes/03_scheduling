@@ -50,25 +50,29 @@
     - Then, we end up with this DAG:
 
         dag = DAG(
-           dag_id="user_events",
-           start_date=datetime(2015, 6, 1),
-           schedule_interval=None,
+            dag_id="user_events",
+            start_date=datetime(2015, 6, 1),
+            schedule_interval=None,
         )
          
         fetch_events = BashOperator(
-           task_id="fetch_events",
-           bash_command="curl -o data/events.json https://localhost:5000/events",
-           dag=dag,
+            task_id="fetch_events",
+            bash_command=(
+                "mkdir -p /data && "
+                "curl -o /data/events.json "
+                "https:/ /localhost:5000/events" 
+            ),
+            dag=dag,
         )
  
         calculate_stats = PythonOperator(
-           task_id="calculate_stats",
-           python_callable=_calculate_stats,
-           op_kwargs={
-               "input_path": "data/events.json",
-               "output_path": "data/stats.csv",
-           },
-           dag=dag,
+            task_id="calculate_stats",
+            python_callable=_calculate_stats,
+            op_kwargs={
+                "input_path": "data/events.json",
+                "output_path": "data/stats.csv",
+            },
+            dag=dag,
         )
          
         fetch_events >> calculate_stats
@@ -371,3 +375,13 @@
         events file, running it multiple times would add multiple copies of the events to the file.
 
       If we create a file for a single day's events, we could overwrite it with no additional effects.
+        If we re-run the bash operator, the new events file will overwrite the existing file.
+
+
+    - In general, tasks that write data can be made idempotent by checking for existing results or
+        making sure that previous results are overwritten by the task.  In time-partitioned data sets,
+        this relatively straightforward, as we can simply overwrite the corresponding partition.
+
+
+    - Similarly, in database systems, we can use upsert operations to insert data, which allows us to
+        overwrite existing rows that were written by previous task executions.
